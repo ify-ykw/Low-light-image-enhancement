@@ -42,19 +42,18 @@ denoise_model = load_denoise_model()
 def lowlight(image_path, output_path):
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     
-    # 读取原始图像
-    data_lowlight = Image.open(image_path)
+    # 读取原始图像 (确保是 RGB)
+    data_lowlight = Image.open(image_path).convert("RGB")
     original_size = data_lowlight.size  # (width, height)
     
     # **根据原始尺寸确定缩放目标**
-    if original_size[0] > original_size[1]:  # 横屏
-        target_size = (640, 480)
-    else:  # 竖屏
-        target_size = (480, 640)
+    #if original_size[0] > original_size[1]:  # 横屏
+    #    target_size = (640, 480)
+    #else:  # 竖屏
+    #    target_size = (480, 640)
 
     # **保持原始宽高比缩小**
-    data_lowlight.thumbnail(target_size)
-
+    #data_lowlight.thumbnail(target_size)
 
     # 转换成 Tensor
     data_lowlight = (np.asarray(data_lowlight) / 255.0)
@@ -71,8 +70,10 @@ def lowlight(image_path, output_path):
     enhanced_image = enhanced_image.squeeze(0).permute(1, 2, 0).cpu().numpy()
     enhanced_image = (enhanced_image * 255).astype(np.uint8)
 
-    # **使用 MIRNetv2 进行降噪**
+    # **转换为 BGR 以符合 OpenCV**
     enhanced_image = cv2.cvtColor(enhanced_image, cv2.COLOR_RGB2BGR)
+
+    # **使用 MIRNetv2 进行降噪**
     input_tensor = torch.from_numpy(enhanced_image).float().div(255.).permute(2, 0, 1).unsqueeze(0).cuda()
 
     with torch.no_grad():
@@ -81,12 +82,17 @@ def lowlight(image_path, output_path):
         restored = restored.permute(0, 2, 3, 1).cpu().detach().numpy()
         restored = img_as_ubyte(restored[0])
 
-    # **恢复到原始尺寸**
+    # **转换回 RGB，避免红蓝翻转**
+    restored = cv2.cvtColor(restored, cv2.COLOR_BGR2RGB)
+
+    # **转换为 PIL.Image**
     restored_image_pil = Image.fromarray(restored)
-    restored_image_pil = restored_image_pil.resize(original_size)
-    
-    # 保存结果
+
+    # **保存结果**
     restored_image_pil.save(output_path)
+
+    # **返回最终尺寸**
+    return restored_image_pil.size  # (width, height)
 
 def process_video(input_video_path, output_video_path, temp_dir):
     original_frames_dir = os.path.join(temp_dir, "lowLight")
@@ -105,6 +111,7 @@ def process_video(input_video_path, output_video_path, temp_dir):
     frame_index = 0
     original_frame_paths = []
     enhanced_frame_paths = []
+    final_size = None  # 记录最终视频尺寸
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -128,26 +135,19 @@ def process_video(input_video_path, output_video_path, temp_dir):
     # **使用 Zero-DCE + MIRNetv2 处理每一帧**
     for i in range(len(original_frame_paths)):
         print(f"Processing: {original_frame_paths[i]}")
-        lowlight(original_frame_paths[i], enhanced_frame_paths[i])  # 移除 target_size 参数
+        final_size = lowlight(original_frame_paths[i], enhanced_frame_paths[i])  
 
     print("所有帧已处理完毕，开始合成新视频。")
 
-    # **将处理后的帧合成视频**
+    # **用增强后的尺寸创建视频**
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+    out = cv2.VideoWriter(output_video_path, fourcc, fps, final_size)  # 使用 lowlight 返回的尺寸
 
-    # if width > height:
-      # out = cv2.VideoWriter(output_video_path, fourcc, fps, (640, 480))  # 橫屏輸出
-    # else:
-      # out = cv2.VideoWriter(output_video_path, fourcc, fps, (480, 640))  # 豎屏輸出
-
-#1
     for enhanced_frame_path in enhanced_frame_paths:
-      frame = cv2.imread(enhanced_frame_path)
-      out.write(frame)
+        frame = cv2.imread(enhanced_frame_path)
+        frame = cv2.resize(frame, final_size)  # 确保尺寸一致
+        out.write(frame)
 
-
-#1
     out.release()
     print(f"增强视频已保存至 {output_video_path}")
 
