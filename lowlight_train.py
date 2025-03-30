@@ -85,7 +85,7 @@ def train(config):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--lowlight_images_path', type=str, default="/content/Zero-DCE/Zero-DCE_code/data/train_data")
+    parser.add_argument('--lowlight_images_path', type=str, default="/content/Low-light-image-enhancement/__data/train_data")
     parser.add_argument('--lr', type=float, default=0.0001)
     parser.add_argument('--weight_decay', type=float, default=0.0001)
     parser.add_argument('--grad_clip_norm', type=float, default=0.1)
@@ -94,9 +94,9 @@ if __name__ == "__main__":
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--display_iter', type=int, default=10)
     parser.add_argument('--snapshot_iter', type=int, default=10)
-    parser.add_argument('--snapshots_folder', type=str, default="/content/Zero-DCE/Zero-DCE_code/snapshots/")
+    parser.add_argument('--snapshots_folder', type=str, default="/content/Low-light-image-enhancement/snapshots/")
     parser.add_argument('--load_pretrain', type=bool, default=False)
-    parser.add_argument('--pretrain_dir', type=str, default="/content/Zero-DCE/Zero-DCE_code/snapshots/Epoch99.pth")
+    parser.add_argument('--pretrain_dir', type=str, default="/content/Low-light-image-enhancement/snapshots/Epoch99.pth")
     parser.add_argument('--num_epochs', type=int, default=400, help='Number of epochs to train the model')
 
     config = parser.parse_args()
