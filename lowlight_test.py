@@ -16,15 +16,15 @@ import glob
 import time
 
 
-def lowlight(image_path):
+def lowlight(image_path, output_folder):
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     
     if not os.path.exists(image_path):
-        print(f" error: {image_path} does not exist！")
+        print(f"Error: {image_path} does not exist!")
         return
 
     if not image_path.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
-        print(f" Skip non-image files: {image_path}")
+        print(f"Skipping non-image file: {image_path}")
         return
     
     data_lowlight = Image.open(image_path)
@@ -39,38 +39,38 @@ def lowlight(image_path):
     _, enhanced_image, _ = DCE_net(data_lowlight)
     end_time = time.time() - start
 
-    print(f" Enhancement Time: {end_time:.3f} sec")
-    print(f" Enhanced Image Shape: {enhanced_image.shape}")
-    print(f" Max Pixel Value: {enhanced_image.max()}")
-
+    print(f"Enhancement Time: {end_time:.3f} sec")
+    
     image_filename = os.path.basename(image_path)
-    result_path = os.path.join('/content/Low-light-image-enhancement/__data/result', image_filename)
+    result_path = os.path.join(output_folder, image_filename)
 
-    if not os.path.exists(os.path.dirname(result_path)):
-        os.makedirs(os.path.dirname(result_path))
-
-    if enhanced_image is not None:
-        print(f" Saving image to {result_path}")
-        torchvision.utils.save_image(enhanced_image, result_path)
-    else:
-        print(" Error: enhanced_image is None, skipping save!")
+    os.makedirs(output_folder, exist_ok=True)
+    torchvision.utils.save_image(enhanced_image, result_path)
+    print(f"Saved: {result_path}")
 
 if __name__ == '__main__':
-    with torch.no_grad():
-        filePath = '/content/Low-light-image-enhancement/__data/test_data'
-        if not os.path.exists(filePath):
-            print(f" Error: {filePath} does not exist!")
-            exit(1)
+    test_data_path = '/content/Low-light-image-enhancement/__data/test_data'
+    result_base_path = '/content/Low-light-image-enhancement/__data/result'
+    
+    if not os.path.exists(test_data_path):
+        print(f"Error: {test_data_path} does not exist!")
+        exit(1)
+    
+    subfolders = [f for f in os.listdir(test_data_path) if os.path.isdir(os.path.join(test_data_path, f))]
+    
+    if not subfolders:
+        print("No subfolders found in test_data!")
+        exit(1)
+    
+    for subfolder in subfolders:
+        input_folder = os.path.join(test_data_path, subfolder)
+        output_folder = os.path.join(result_base_path, subfolder)
+        
+        image_list = glob.glob(os.path.join(input_folder, '*'))
+        
+        for image in image_list:
+            print(f"Processing: {image}")
+            lowlight(image, output_folder)
+    
+    print("All images processed!")
 
-        file_list = os.listdir(filePath)
-        if not file_list:
-            print(" No files found in test_data!")
-            exit(1)
-
-        for file_name in file_list:
-            test_list = glob.glob(os.path.join(filePath, file_name, "*"))
-            for image in test_list:
-                print(f" Processing: {image}")
-                lowlight(image)
-
-    print(" All images processed!")
